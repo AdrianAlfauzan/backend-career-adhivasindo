@@ -1,0 +1,348 @@
+openapi: 3.0.0
+info:
+  title: Adhivasindo Backend API
+  version: 1.0.0
+  description: |
+    Take Home Test Backend Developer — Adhivasindo.
+
+    **Cara pakai:**
+    1. Jalankan `POST /api/auth/login` dengan `admin` / `admin123`
+    2. Copy token dari response
+    3. Klik tombol **Authorize** di kanan atas, paste token (tanpa kata "Bearer")
+    4. Endpoint lain sudah otomatis terautentikasi
+
+servers:
+  - url: http://localhost:3000
+    description: Local development
+
+tags:
+  - name: Auth
+    description: Autentikasi
+  - name: Users
+    description: CRUD User (butuh JWT)
+  - name: Search
+    description: Pencarian data real-time dari bit.ly/48ejMhW (butuh JWT)
+
+paths:
+  /:
+    get:
+      summary: Health check
+      tags: [Auth]
+      responses:
+        "200":
+          description: API berjalan
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  success: { type: boolean, example: true }
+                  message: { type: string, example: "Adhivasindo Backend API 🚀" }
+                  version: { type: string, example: "1.0.0" }
+
+  /api/auth/login:
+    post:
+      summary: "Endpoint A — Login"
+      description: Login untuk mendapatkan JWT token. Token ini wajib untuk endpoint B, C, D, E.
+      tags: [Auth]
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [username, password]
+              properties:
+                username:
+                  type: string
+                  example: admin
+                password:
+                  type: string
+                  example: admin123
+      responses:
+        "200":
+          description: Login berhasil
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  success: { type: boolean, example: true }
+                  message: { type: string, example: "Login successful." }
+                  data:
+                    type: object
+                    properties:
+                      token:
+                        type: string
+                        example: "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9..."
+                      user:
+                        $ref: "#/components/schemas/User"
+        "401":
+          description: Username atau password salah
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+
+  /api/users:
+    get:
+      summary: "Endpoint B — Get all users"
+      tags: [Users]
+      security:
+        - BearerAuth: []
+      responses:
+        "200":
+          description: Daftar user
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  success: { type: boolean }
+                  total: { type: integer, example: 2 }
+                  data:
+                    type: array
+                    items:
+                      $ref: "#/components/schemas/User"
+        "401":
+          $ref: "#/components/responses/Unauthorized"
+    post:
+      summary: "Endpoint B — Create user"
+      tags: [Users]
+      security:
+        - BearerAuth: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [username, email, password]
+              properties:
+                username: { type: string, example: budi }
+                email: { type: string, example: budi@mail.com }
+                password: { type: string, example: rahasia123 }
+                full_name: { type: string, example: "Budi Santoso" }
+      responses:
+        "201":
+          description: User dibuat
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  success: { type: boolean }
+                  message: { type: string }
+                  data:
+                    $ref: "#/components/schemas/User"
+        "409":
+          description: Username/email sudah ada
+        "401":
+          $ref: "#/components/responses/Unauthorized"
+
+  /api/users/{id}:
+    get:
+      summary: "Endpoint B — Get user by ID"
+      tags: [Users]
+      security:
+        - BearerAuth: []
+      parameters:
+        - in: path
+          name: id
+          required: true
+          schema: { type: integer, example: 1 }
+      responses:
+        "200":
+          description: Detail user
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  success: { type: boolean }
+                  data:
+                    $ref: "#/components/schemas/User"
+        "404":
+          description: User tidak ditemukan
+        "401":
+          $ref: "#/components/responses/Unauthorized"
+    put:
+      summary: "Endpoint B — Update user"
+      tags: [Users]
+      security:
+        - BearerAuth: []
+      parameters:
+        - in: path
+          name: id
+          required: true
+          schema: { type: integer, example: 1 }
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                username: { type: string }
+                email: { type: string }
+                password: { type: string }
+                full_name: { type: string, example: "Budi Updated" }
+                is_active: { type: boolean }
+      responses:
+        "200":
+          description: User diupdate
+        "404":
+          description: User tidak ditemukan
+        "401":
+          $ref: "#/components/responses/Unauthorized"
+    delete:
+      summary: "Endpoint B — Delete user"
+      tags: [Users]
+      security:
+        - BearerAuth: []
+      parameters:
+        - in: path
+          name: id
+          required: true
+          schema: { type: integer, example: 1 }
+      responses:
+        "200":
+          description: User dihapus
+        "404":
+          description: User tidak ditemukan
+        "401":
+          $ref: "#/components/responses/Unauthorized"
+
+  /api/search/name:
+    get:
+      summary: "Endpoint C — Cari data dari NAMA"
+      description: Mencari data real-time dari https://bit.ly/48ejMhW berdasarkan nama (case-insensitive, partial match).
+      tags: [Search]
+      security:
+        - BearerAuth: []
+      parameters:
+        - in: query
+          name: name
+          schema: { type: string, example: "Turner Mia" }
+          description: Nama yang dicari (default "Turner Mia")
+      responses:
+        "200":
+          description: Hasil pencarian
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/SearchResponse"
+        "401":
+          $ref: "#/components/responses/Unauthorized"
+
+  /api/search/nim:
+    get:
+      summary: "Endpoint D — Cari data dari NIM"
+      description: Mencari data real-time dari https://bit.ly/48ejMhW berdasarkan NIM (exact match).
+      tags: [Search]
+      security:
+        - BearerAuth: []
+      parameters:
+        - in: query
+          name: nim
+          schema: { type: string, example: "9352078461" }
+          description: NIM yang dicari (default "9352078461")
+      responses:
+        "200":
+          description: Hasil pencarian
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/SearchResponse"
+        "401":
+          $ref: "#/components/responses/Unauthorized"
+
+  /api/search/ymd:
+    get:
+      summary: "Endpoint E — Cari data dari YMD"
+      description: Mencari data real-time dari https://bit.ly/48ejMhW berdasarkan YMD (format YYYYMMDD, exact match).
+      tags: [Search]
+      security:
+        - BearerAuth: []
+      parameters:
+        - in: query
+          name: ymd
+          schema: { type: string, example: "20230405" }
+          description: YMD yang dicari (default "20230405")
+      responses:
+        "200":
+          description: Hasil pencarian
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/SearchResponse"
+        "401":
+          $ref: "#/components/responses/Unauthorized"
+
+  /api/search/all:
+    get:
+      summary: "Bonus — Get semua data eksternal"
+      description: Menampilkan semua data dari API eksternal (untuk debug).
+      tags: [Search]
+      security:
+        - BearerAuth: []
+      responses:
+        "200":
+          description: Semua data
+        "401":
+          $ref: "#/components/responses/Unauthorized"
+
+components:
+  securitySchemes:
+    BearerAuth:
+      type: http
+      scheme: bearer
+      bearerFormat: JWT
+      description: "Masukkan JWT token dari /api/auth/login (tanpa kata 'Bearer')"
+
+  schemas:
+    User:
+      type: object
+      properties:
+        id: { type: integer, example: 1 }
+        username: { type: string, example: admin }
+        email: { type: string, example: "admin@adhivasindo.co.id" }
+        full_name: { type: string, example: Administrator }
+        is_active: { type: boolean, example: true }
+        created_at: { type: string, format: date-time }
+        updated_at: { type: string, format: date-time }
+
+    SearchItem:
+      type: object
+      properties:
+        nim: { type: string, example: "9352078461" }
+        ymd: { type: string, example: "20220713" }
+        nama: { type: string, example: "Turner Mia" }
+
+    SearchResponse:
+      type: object
+      properties:
+        success: { type: boolean, example: true }
+        query:
+          type: object
+          additionalProperties: true
+        total: { type: integer, example: 1 }
+        data:
+          type: array
+          items:
+            $ref: "#/components/schemas/SearchItem"
+
+    ErrorResponse:
+      type: object
+      properties:
+        success: { type: boolean, example: false }
+        message: { type: string, example: "Invalid credentials." }
+        error: { type: string }
+
+  responses:
+    Unauthorized:
+      description: Token tidak ada / tidak valid
+      content:
+        application/json:
+          schema:
+            $ref: "#/components/schemas/ErrorResponse"
